@@ -5,19 +5,21 @@ import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "Genezio" is now active!');
+    setSignOutContext(context);
 
     // Register your deploy command
     let disposable = vscode.commands.registerCommand('genezio.deployProject', async () => {
         vscode.window.showInformationMessage('Deploying project...');
         let token = await context.secrets.get('genezio-token');
         if (!token) {
-            token = await startLoginFlow();
+            token = await startSignInFlow();
             if (token) {
-                vscode.window.showInformationMessage('Login successful!');
+                vscode.window.showInformationMessage('Signed in to Genezio');
                 // Store the token securely, e.g., in VS Code's secret storage
                 await context.secrets.store('genezio-token', token);
+                setSignOutContext(context);
             } else {
-                vscode.window.showErrorMessage('Login failed');
+                vscode.window.showErrorMessage('Sign in to Genezio failed');
                 return;
             }
         }
@@ -30,19 +32,25 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
         }
     });
+    context.subscriptions.push(disposable);
 
+    disposable = vscode.commands.registerCommand('genezio.signOut', async () => {
+        context.secrets.delete('genezio-token');
+        setSignOutContext(context);
+        vscode.window.showInformationMessage('Signed out from Genezio');
+    });
     context.subscriptions.push(disposable);
 
     // Create a status bar item
     let statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    statusBarItem.text = '$(cloud-upload) Deploy Project';
+    statusBarItem.text = '$(cloud-upload) Deploy App';
     statusBarItem.command = 'genezio.deployProject';
     statusBarItem.show();
 
     context.subscriptions.push(statusBarItem);
 }
 
-async function startLoginFlow(): Promise<string | undefined> {
+async function startSignInFlow(): Promise<string | undefined> {
     return new Promise((resolve, reject) => {
         // Start a local server to listen for the OAuth callback
         const server = http.createServer((req, res) => {
@@ -64,21 +72,11 @@ async function startLoginFlow(): Promise<string | undefined> {
             }
         }).listen(56912); // Use a port of your choice
 
-        // Open the user's default browser with the login URL
-        const loginUrl = 'https://app.genez.io/cli/login?redirect_url=http://localhost:56912';
-        vscode.env.openExternal(vscode.Uri.parse(loginUrl));
+        // Open the user's default browser with the sign in URL
+        const signInUrl = 'https://app.genez.io/cli/login?redirect_url=http://localhost:56912';
+        vscode.env.openExternal(vscode.Uri.parse(signInUrl));
     });
 }
-
-async function readFileContent(fileUri: vscode.Uri): Promise<string> {
-    try {
-        const fileContent = await vscode.workspace.fs.readFile(fileUri);
-        return new TextDecoder('utf-8').decode(fileContent);
-    } catch (error: any) {
-        throw new Error(`Failed to read file ${fileUri.fsPath}: ${error.message}`);
-    }
-}
-
 
 function checkIfBinary(fileContent: Uint8Array): boolean {
     const sampleSize = Math.min(512, fileContent.length);
@@ -138,7 +136,6 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         vscode.window.showInformationMessage("Deployment failed");
         return;
     }
-
 
     const response = await fetch("https://build-system.genez.io/state/" + jobId, {
         "headers": {
@@ -216,5 +213,11 @@ async function deployProject(token:string): Promise<void> {
     const jsonResponse: any = await response.json();
     checkDeployStatus(token, jsonResponse.jobID, 1);
 }
+
+async function setSignOutContext(context: vscode.ExtensionContext) {
+    const token = await context.secrets.get('genezio-token');
+    vscode.commands.executeCommand('setContext', 'genezio.signedIn', !!token);
+}
+
 
 export function deactivate() {}

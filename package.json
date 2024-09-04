@@ -17,8 +17,11 @@
     "commands": [
       {
         "command": "genezio.deployProject",
-        "title": "Deploy Project",
-        "category": "Genezio"
+        "title": "Genezio / Deploy Project"
+      },
+      {
+        "command": "genezio.signOut",
+        "title": "Genezio / Sign Out"
       }
     ],
     "menus": {
@@ -32,9 +35,14 @@
       "commandPalette": [
         {
           "command": "genezio.deployProject",
-          "when": "editorTextFocus",
           "group": "navigation"
+        },
+        {
+          "command": "genezio.signOut",
+          "group": "navigation",
+          "when": "genezio.signedIn"
         }
+
       ]
     }
   },
