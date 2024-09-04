@@ -250,7 +250,7 @@ async function deployProject(context: any, token:string): Promise<void> {
         }
         return;
     }
-    checkDeployStatus(token + 'b', jsonResponse.jobID, 1);
+    checkDeployStatus(token, jsonResponse.jobID, 1);
 }
 
 async function setSignOutContext(context: vscode.ExtensionContext) {
