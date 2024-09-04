@@ -8,10 +8,8 @@ Sign in with your Genezio account
 
 Deploy the existing project
 
+Sign out from command palette (search for Genezio)
+
 ## Known Issues
-
-User cannot sign out
-
-More error handling needed
 
 At the end of a succesful deploy, we should show the app URLs

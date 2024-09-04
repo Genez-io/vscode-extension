@@ -1,8 +1,17 @@
 {
   "name": "genezio",
   "displayName": "Genezio",
-  "description": "Deploy your code to app.genezio.com",
-  "version": "0.0.1",
+  "description": "Deploy your genezio app to app.genez.io right from Visual Studio Code",
+  "version": "0.0.2",
+  "author": {
+    "name": "Genezio"
+  },
+  "publisher": "Genezio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Genez-io/vscode-extension/"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.92.0"
   },
