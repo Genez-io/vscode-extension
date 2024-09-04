@@ -181,16 +181,32 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     setTimeout(() => {checkDeployStatus(token, jobId, cnt+1)}, 1000);
 }
 
-async function deployProject(token:string): Promise<void> {
+function getProjectFolderName(): string {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+        // Get the first workspace folder path
+        const workspacePath = workspaceFolders[0].uri.fsPath;
 
+        // Extract just the folder name from the full path
+        const folderName = path.basename(workspacePath);
+
+        return folderName;
+    }
+
+    return "genezio-project";
+}
+
+
+async function deployProject(token:string): Promise<void> {
     let files = await readAllFiles();
+    const projectName = getProjectFolderName();
 
     let body = {
         "token": token,
         "type":"s3",
         "envId":"e073d11a-0e6a-4216-81f7-9060a10a7776",
         "args": {
-            "projectName":"project-name",
+            "projectName": projectName,
             "region":"us-east-1",
             "stage":"prod",
             "stack":[],
@@ -218,6 +234,5 @@ async function setSignOutContext(context: vscode.ExtensionContext) {
     const token = await context.secrets.get('genezio-token');
     vscode.commands.executeCommand('setContext', 'genezio.signedIn', !!token);
 }
-
 
 export function deactivate() {}
