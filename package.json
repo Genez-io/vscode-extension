@@ -2,7 +2,7 @@
   "name": "genezio",
   "displayName": "Genezio",
   "description": "Deploy your genezio app to app.genez.io right from Visual Studio Code",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": {
     "name": "Genezio"
   },

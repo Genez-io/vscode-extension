@@ -26,8 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Call Genezio API to deploy project
         try {
-            await deployProject(token);
-            //vscode.window.showInformationMessage('Project deployed successfully!');
+            await deployProject(context, token);
         } catch (error: any) {
             vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
         }
@@ -133,36 +132,43 @@ async function readAllFiles(): Promise<any> {
 let oldReason = '';
 async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     if (cnt > 60) {
-        vscode.window.showInformationMessage("Deployment failed");
+        vscode.window.showErrorMessage("Deployment failed");
         return;
     }
 
-    const response = await fetch("https://build-system.genez.io/state/" + jobId, {
-        "headers": {
-          "accept": "application/json, text/plain, */*",
-          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-          "authorization": "Bearer " + token,
-          "cache-control": "no-cache",
-          "pragma": "no-cache",
-          "priority": "u=1, i",
-          "sec-ch-ua": "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"128\"",
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "\"macOS\"",
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "same-site",
-          "Referer": "https://app.genez.io/",
-          "Referrer-Policy": "strict-origin-when-cross-origin"
-        },
-        "body": null,
-        "method": "GET"
-    });
+    let response: any;
+    try {
+        response = await fetch("https://build-system.genez.io/state/" + jobId, {
+            "headers": {
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "authorization": "Bearer " + token,
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "priority": "u=1, i",
+            "sec-ch-ua": "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"128\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "Referer": "https://app.genez.io/",
+            "Referrer-Policy": "strict-origin-when-cross-origin"
+            },
+            "body": null,
+            "method": "GET"
+        });
+    } catch (error: any) {
+        vscode.window.showErrorMessage(error.message);
+        return;
+    }
 
     let data: any;
+    const responseText = await response.text();
     try {
-        data = await response.json();
+        data = JSON.parse(responseText);
     } catch(error: any) {
-        vscode.window.showInformationMessage(error.message);
+        vscode.window.showErrorMessage(responseText);
         return;
     }
 
@@ -197,14 +203,14 @@ function getProjectFolderName(): string {
 }
 
 
-async function deployProject(token:string): Promise<void> {
+async function deployProject(context: any, token:string): Promise<void> {
     let files = await readAllFiles();
     const projectName = getProjectFolderName();
 
     let body = {
         "token": token,
         "type":"s3",
-        "envId":"e073d11a-0e6a-4216-81f7-9060a10a7776",
+        // "envId":"e073d11a-0e6a-4216-81f7-9060a10a7776",
         "args": {
             "projectName": projectName,
             "region":"us-east-1",
@@ -214,20 +220,37 @@ async function deployProject(token:string): Promise<void> {
         }
     };
 
-    const response = await fetch("https://build-system.genez.io/deploy", {
-        "headers": {
-          "accept": "application/json, text/plain, */*",
-          "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
-          "cache-control": "no-cache",
-          "content-type": "application/json",
-          "pragma": "no-cache"
-        },
-        "body": JSON.stringify(body),
-        "method": "POST"
-      });
+    let response;
+    try {
+        response = await fetch("https://build-system.genez.io/deploy", {
+            "headers": {
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "cache-control": "no-cache",
+            "content-type": "application/json",
+            "pragma": "no-cache"
+            },
+            "body": JSON.stringify(body),
+            "method": "POST"
+        });
+    } catch (error: any) {
+        vscode.window.showErrorMessage(error.message);
+        return;
+    }
     
-    const jsonResponse: any = await response.json();
-    checkDeployStatus(token, jsonResponse.jobID, 1);
+    let jsonResponse: any;
+    const responseText = await response.text();
+    try {
+        jsonResponse = JSON.parse(responseText);
+    } catch (error: any) {
+        vscode.window.showErrorMessage(responseText);
+        if (responseText.includes("401")) {
+            context.secrets.delete('genezio-token');
+            setSignOutContext(context);
+        }
+        return;
+    }
+    checkDeployStatus(token + 'b', jsonResponse.jobID, 1);
 }
 
 async function setSignOutContext(context: vscode.ExtensionContext) {
