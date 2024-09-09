@@ -185,19 +185,20 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         return;
     }
 
+    console.log(data);
     if (data.BuildStatus == "SUCCEEDED") {
         vscode.window.showInformationMessage("Deployment successful");
         statusBarItem.text = '$(cloud-upload) Deploy App';
         oldReason="";
         let url:string = '';
-        if (data.ProjectDetails?.FrontendURLs) {
+        if (data.ProjectDetails?.FrontendURLs && data.ProjectDetails.FrontendURLs.length > 0) {
             url = data.ProjectDetails.FrontendURLs[0];
-        } else if(data.ProjectDetails?.FunctionURLs) {
-            url = data.ProjectDetails.FunctionURLs[0];
+        } else if(data.ProjectDetails?.BackendURLs && data.ProjectDetails.BackendURLs.length > 0) {
+            url = data.ProjectDetails.BackendURLs[0].URL;
         }
         if (url) {
-            const action = await vscode.window.showInformationMessage(`Your app was deployed at ${url}`, "Open");
-            if (action === "Open") {
+            const action = await vscode.window.showInformationMessage(`Your app was deployed at ${url}`, { modal: true }, "Open App");
+            if (action === "Open App") {
                 vscode.env.openExternal(vscode.Uri.parse(url));
             }
         }
