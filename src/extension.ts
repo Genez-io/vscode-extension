@@ -2,13 +2,23 @@ import * as vscode from 'vscode';
 import * as http from 'http';
 import * as url from 'url';
 import * as path from 'path';
+import * as yaml from 'yaml';
+import { CompletionItem, CompletionItemKind } from 'vscode';
+import { stat } from 'fs';
+let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "Genezio" is now active!');
+    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     setSignOutContext(context);
 
     // Register your deploy command
     let disposable = vscode.commands.registerCommand('genezio.deployProject', async () => {
+        if (statusBarItem.text.includes('Deploying')) {
+            vscode.window.showInformationMessage('Deployment already in progress');
+            return;
+        }
+        statusBarItem.text = '$(sync~spin) Deploying...'; // Change icon to loading spinner
         vscode.window.showInformationMessage('Deploying project...');
         let token = await context.secrets.get('genezio-token');
         if (!token) {
@@ -28,6 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
         try {
             await deployProject(context, token);
         } catch (error: any) {
+            statusBarItem.text = '$(cloud-upload) Deploy App';
             vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
         }
     });
@@ -41,7 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     // Create a status bar item
-    let statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     statusBarItem.text = '$(cloud-upload) Deploy App';
     statusBarItem.command = 'genezio.deployProject';
     statusBarItem.show();
@@ -132,6 +142,7 @@ async function readAllFiles(): Promise<any> {
 let oldReason = '';
 async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     if (cnt > 60) {
+        statusBarItem.text = '$(cloud-upload) Deploy App';
         vscode.window.showErrorMessage("Deployment failed");
         return;
     }
@@ -159,7 +170,8 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
             "method": "GET"
         });
     } catch (error: any) {
-        vscode.window.showErrorMessage(error.message);
+        statusBarItem.text = '$(cloud-upload) Deploy App';
+        vscode.window.showErrorMessage("Failed to get build status: " + error.message);
         return;
     }
 
@@ -168,13 +180,27 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     try {
         data = JSON.parse(responseText);
     } catch(error: any) {
+        statusBarItem.text = '$(cloud-upload) Deploy App';
         vscode.window.showErrorMessage(responseText);
         return;
     }
 
     if (data.BuildStatus == "SUCCEEDED") {
         vscode.window.showInformationMessage("Deployment successful");
+        statusBarItem.text = '$(cloud-upload) Deploy App';
         oldReason="";
+        let url:string = '';
+        if (data.ProjectDetails?.FrontendURLs) {
+            url = data.ProjectDetails.FrontendURLs[0];
+        } else if(data.ProjectDetails?.FunctionURLs) {
+            url = data.ProjectDetails.FunctionURLs[0];
+        }
+        if (url) {
+            const action = await vscode.window.showInformationMessage(`Your app was deployed at ${url}`, "Open");
+            if (action === "Open") {
+                vscode.env.openExternal(vscode.Uri.parse(url));
+            }
+        }
         return;
     }
 
@@ -210,7 +236,6 @@ async function deployProject(context: any, token:string): Promise<void> {
     let body = {
         "token": token,
         "type":"s3",
-        // "envId":"e073d11a-0e6a-4216-81f7-9060a10a7776",
         "args": {
             "projectName": projectName,
             "region":"us-east-1",
@@ -234,7 +259,7 @@ async function deployProject(context: any, token:string): Promise<void> {
             "method": "POST"
         });
     } catch (error: any) {
-        vscode.window.showErrorMessage(error.message);
+        vscode.window.showErrorMessage("Failed calling the deploy endpoint: " + error.message);
         return;
     }
     
