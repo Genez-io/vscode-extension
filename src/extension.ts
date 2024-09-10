@@ -194,15 +194,16 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     }
 
     if (data.BuildStatus == "SUCCEEDED") {
-        vscode.window.showInformationMessage("Deployment successful");
-        statusBarItem.text = '$(cloud-upload) Deploy App';
-        oldReason="";
+        console.log(responseText);
         let url:string = '';
         if (data.ProjectDetails?.FrontendURLs && data.ProjectDetails.FrontendURLs.length > 0) {
             url = data.ProjectDetails.FrontendURLs[0];
         } else if(data.ProjectDetails?.BackendURLs && data.ProjectDetails.BackendURLs.length > 0) {
             url = data.ProjectDetails.BackendURLs[0].URL;
         }
+        vscode.window.showInformationMessage("Deployment successful" + (url?"at "+url:""));
+        statusBarItem.text = '$(cloud-upload) Deploy App';
+        oldReason="";
         if (url) {
             const action = await vscode.window.showInformationMessage(`Your app was deployed at ${url}`, { modal: true }, "Open App");
             if (action === "Open App") {
