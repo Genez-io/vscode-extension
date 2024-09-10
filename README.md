@@ -12,4 +12,3 @@ Sign out from command palette (search for "Genezio")
 
 ## Known Issues
 
-At the end of a succesful deploy, we should show the app URLs
