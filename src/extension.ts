@@ -6,6 +6,7 @@ import * as yaml from 'yaml';
 import { CompletionItem, CompletionItemKind } from 'vscode';
 import { stat } from 'fs';
 let statusBarItem: vscode.StatusBarItem;
+let timeoutId:NodeJS.Timeout|undefined = undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "Genezio" is now active!');
@@ -15,7 +16,14 @@ export function activate(context: vscode.ExtensionContext) {
     // Register your deploy command
     let disposable = vscode.commands.registerCommand('genezio.deployProject', async () => {
         if (statusBarItem.text.includes('Deploying')) {
-            vscode.window.showInformationMessage('Deployment already in progress');
+            const action = await vscode.window.showInformationMessage('Deployment already in progress. Do you want to abort the current deployment?', { modal: true }, "Yes");
+            if (action === "Yes") {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                statusBarItem.text = '$(cloud-upload) Deploy App';
+                vscode.window.showInformationMessage('Deployment aborted');
+            }
             return;
         }
         statusBarItem.text = '$(sync~spin) Deploying...'; // Change icon to loading spinner
@@ -185,7 +193,6 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         return;
     }
 
-    console.log(data);
     if (data.BuildStatus == "SUCCEEDED") {
         vscode.window.showInformationMessage("Deployment successful");
         statusBarItem.text = '$(cloud-upload) Deploy App';
@@ -211,7 +218,7 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         oldReason = newReason;
     }
 
-    setTimeout(() => {checkDeployStatus(token, jobId, cnt+1)}, 1000);
+    timeoutId = setTimeout(() => {checkDeployStatus(token, jobId, cnt+1);}, 1000);
 }
 
 function getProjectFolderName(): string {
