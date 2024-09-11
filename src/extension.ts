@@ -201,6 +201,10 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         } else if(data.ProjectDetails?.BackendURLs && data.ProjectDetails.BackendURLs.length > 0) {
             url = data.ProjectDetails.BackendURLs[0].URL;
         }
+        // add https:// if not present
+        if (url && !url.startsWith("http")) {
+            url = "https://" + url;
+        }
         vscode.window.showInformationMessage("Deployment successful" + (url?" at "+url:""));
         statusBarItem.text = '$(cloud-upload) Deploy App';
         oldReason="";
