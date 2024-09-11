@@ -149,9 +149,9 @@ async function readAllFiles(): Promise<any> {
 
 let oldReason = '';
 async function checkDeployStatus(token: string, jobId: string, cnt: number) {
-    if (cnt > 60) {
+    if (cnt > 120) {
         statusBarItem.text = '$(cloud-upload) Deploy App';
-        vscode.window.showErrorMessage("Deployment failed");
+        vscode.window.showErrorMessage("Deployment timed out");
         return;
     }
 
@@ -201,7 +201,7 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
         } else if(data.ProjectDetails?.BackendURLs && data.ProjectDetails.BackendURLs.length > 0) {
             url = data.ProjectDetails.BackendURLs[0].URL;
         }
-        vscode.window.showInformationMessage("Deployment successful" + (url?"at "+url:""));
+        vscode.window.showInformationMessage("Deployment successful" + (url?" at "+url:""));
         statusBarItem.text = '$(cloud-upload) Deploy App';
         oldReason="";
         if (url) {
@@ -222,7 +222,22 @@ async function checkDeployStatus(token: string, jobId: string, cnt: number) {
     timeoutId = setTimeout(() => {checkDeployStatus(token, jobId, cnt+1);}, 1000);
 }
 
-function getProjectFolderName(): string {
+function getProjectDetails(gy: any): any {
+    if (gy?.content) {
+        // get the project name from the genezio.yaml file
+        try {
+            const doc = yaml.parse(gy.content);
+            if (doc && doc.name && doc.region) {
+                return {
+                    name: doc.name,
+                    region: doc.region
+                };
+            }
+        }catch(e) {
+            console.error(e);
+        }
+    }
+    // if the genezio.yaml file is not found or the project name is not specified, use the workspace folder name
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders && workspaceFolders.length > 0) {
         // Get the first workspace folder path
@@ -234,20 +249,23 @@ function getProjectFolderName(): string {
         return folderName;
     }
 
-    return "genezio-project";
+    return {
+        name: "genezio-project",
+        region: "us-east-1"
+    };
 }
 
 
 async function deployProject(context: any, token:string): Promise<void> {
     let files = await readAllFiles();
-    const projectName = getProjectFolderName();
+    const pd = getProjectDetails(files['genezio.yaml']);
 
     let body = {
         "token": token,
         "type":"s3",
         "args": {
-            "projectName": projectName,
-            "region":"us-east-1",
+            "projectName": pd.name,
+            "region": pd.region,
             "stage":"prod",
             "stack":[],
             "code": files
